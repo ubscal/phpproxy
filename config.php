@@ -7,7 +7,7 @@ $config = array();
 //$config['error_redirect'] = "http://www.google.com/?error={error_type}&message={error_msg}";
 
 // for extra privacy and speed - remove all javascript from pages
-$config['remove_script'] = true;
+$config['remove_script'] = false;
 
 // enable cookie functionality?
 $config['enable_cookies'] = true;
@@ -20,7 +20,7 @@ $config['enable_cookies'] = true;
 $config['unique_urls'] = 0;
 
 // replace the title of every page with this - or false to leave the title alone
-$config['replace_title'] = 'PHP-Proxy';
+$config['replace_title'] = 'Books For Students';
 
 // custom user agent - set it to false or null to use visitor's own user-agent
 $config['user_agent'] = 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)';
@@ -37,8 +37,8 @@ $config['blocked_ips'] = array(
 /*
 // "blocked_domain" error if user tries accessing any of these domains
 $config['blocked_domains'] = array(
-	'youtube.com',
-	'facebook.com',
+	'pornhub.com',
+	'rule34.xxx',
 	'xvideos.com',
 	'redtube.com'
 );
