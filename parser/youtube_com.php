@@ -1,72 +1,58 @@
 <?php
 
-class YouTube_com extends ParserTemplate {
+namespace Proxy\Plugin;
 
-	function vn($a, $b){
-		$c = $a[0];
-		$a[0] = $a[$b % strlen($a)];
-		$a[$b] = $c;
-		return $a;
-	}
+use Proxy\Plugin\AbstractPlugin;
+use Proxy\Event\ProxyEvent;
 
-	function sig_decipher($sig){
-		$a = strrev($sig);
-		
-		//$a = substr($a, 2);
-		$a = $this->vn($a, 16);
-		$a = $this->vn($a, 35);
-		
-		return $a;
+use Proxy\Html;
+
+class YoutubePlugin extends AbstractPlugin {
+
+	protected $url_pattern = 'youtube.com';
+	
+	// force old YouTube layout!
+	public function onBeforeRequest(ProxyEvent $event){
+		$event['request']->headers->set('Cookie', 'PREF=f6=8');
+		$event['request']->headers->set('User-Agent', 'Opera/7.50 (Windows XP; U)');
 	}
 	
-	private function get_youtube_links($html){
-
-		if(preg_match('@url_encoded_fmt_stream_map["\']:\s*["\']([^"\'\s]*)@', $html, $matches)){
-			$parts = explode(",", $matches[1]);
-			
-			foreach($parts as $p){
-				$query = str_replace('\u0026', '&', $p);
-				parse_str($query, $arr);
-				
-				$url = $arr['url'];
-				
-				if(isset($arr['s'])){
-					$s = $this->sig_decipher($arr['s']);
-					
-					$url = $url.'&signature='.$s;
-				}
-				
-				$result[$arr['itag']] = $url;
-			}
-			
-			return $result;
-		}
-		
-		return false;
-	}
+	public function onCompleted(ProxyEvent $event){
 	
-	function parse($output, $url, $type){
+		$response = $event['response'];
+		$url = $event['request']->getUrl();
+		$output = $response->getContent();
+		
+		// remove top banner that's full of ads
+		$output = Html::remove("#header", $output);
 		
 		// do this on all youtube pages
-		$output = preg_replace('@masthead-positioner">@', 'masthead-positioner" style="position:static;">', $output, 1); 
-		$output = preg_replace('#<img[^>]*data-thumb=#s','<img alt="Thumbnail" src=', $output);	
+		$output = preg_replace('@masthead-positioner">@', 'masthead-positioner" style="position:static;">', $output, 1);
 		
-		$links = $this->get_youtube_links($output);
-		$itags = array(5, 34, 35); // this is all we can support atm
+		// replace future thumbnails with src=
+		$output = preg_replace('#<img[^>]*data-thumb=#s','<img alt="Thumbnail" src=', $output);
 		
-		foreach($itags as $tag){
+		$youtube = new \YouTubeDownloader();
+		// cannot pass HTML directly because all the links in it are already "proxified"...
+		$links = $youtube->getDownloadLinks($url, "mp4 360, mp4");
 		
-			if(isset($links[$tag])) {
-				$vid_url = $links[$tag];
-				
-				$output = preg_replace('#<div id="player-api"([^>]*)>.*<div class="clear"#s', 
-				'<div id="player-api"$1>'.vid_player($vid_url, 640, 390).'</div><div class="clear"', $output, 1);
+		if($links){
 		
-				break;
-			}
+			$url = current($links)['url'];
+			
+			$player = vid_player($url, 640, 390, 'mp4');
+			
+			// this div blocks our player controls
+			$output = Html::remove("#theater-background", $output);
+			
+			// replace youtube player div block with our own
+			$output = Html::replace_inner("#player-api", $player, $output);
 		}
 		
-		return $output;
+		// causes too many problems...
+		$output = Html::remove_scripts($output);
+			
+		$response->setContent($output);
 	}
 }
 
